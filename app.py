@@ -228,3 +228,10 @@ if st.button("자리배치 완료"):
             file_name='자리표.xlsx',
             mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         )
+
+st.markdown("""
+<hr style='margin-top: 50px; margin-bottom: 10px;'>
+<div style='text-align: center; color: gray; font-size: 14px;'>
+    Made with ❤️ by <strong>황수빈T</strong>
+</div>
+""", unsafe_allow_html=True)
