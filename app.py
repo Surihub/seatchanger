@@ -105,7 +105,7 @@ import math
 # 기본 세팅: 세로줄 5, 가로줄은 학생 수 기반 계산
 default_col = 5
 default_row = math.ceil(n_student / default_col) if n_student else 1
-st.write(default_row)
+# st.write(default_row)
 col_row, col_col, font = st.columns(3)
 
 with col_col:
