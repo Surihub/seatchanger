@@ -132,7 +132,10 @@ cols = st.columns(n_col)
 seating_chart = [[cols[j].checkbox(f"{i+1}-{j+1}", key=f"{i+1}-{j+1}", value=True) for j in range(n_col)] for i in range(n_row)]
 # st.session_state.seating_chart = seating_chart  # 세션 상태에 저장
 
+classname = st.text_input("반 이름을 입력해주세요. 파일명에 포함됩니다. ")
+
 st.write('---')
+
 
 if st.button("자리배치 완료"):
     # 선택된 자리배치표 생성하기
@@ -186,6 +189,9 @@ if st.button("자리배치 완료"):
 
 
         # 학생 관점 자리배치도
+
+        st.write('---')
+        st.error("아래 자리표 미리보기는 엑셀파일을 다운로드 하면 사라집니다. 필요한 경우 📸 캡쳐해두세요!")
         st.subheader("👁️‍🗨️ 학생 관점 자리배치도")
         st.markdown("<h5 style='text-align: center; background-color: #a9ebbc; line-height: 1.5; margin-top: 0px; margin-bottom: 20px; padding: 5px'>칠판</h5>", unsafe_allow_html=True)
         st.markdown(render_styled_table(sight_student_pv), unsafe_allow_html=True)
@@ -208,26 +214,58 @@ if st.button("자리배치 완료"):
         # st.session_state["자리배치_학생"] = sight_student_pv
         # st.session_state["자리배치_교사"] = sight_teacher_pv
 
+        # ── 상단 import 구역에 추가 ─────────────────────────────────────────────
+        from openpyxl import load_workbook
+        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+        from openpyxl.utils import get_column_letter
+        # ───────────────────────────────────────────────────────────────────────
 
-        # 자리표 다운로드 버튼
-        with pd.ExcelWriter('자리표.xlsx') as writer:
-            st.write("")  # 위에 빈칸 추가
-            chilpan = pd.DataFrame(['칠판'] * sight_teacher_pv.shape[1]).T
-            chilpan = pd.concat([pd.Series([""]), chilpan, pd.Series([""])], ignore_index=True)  # 위아래에 빈칸 추가
-            chilpan.columns = range(1, sight_teacher_pv.shape[1] + 1)  # 열 수에 맞게 수정
 
-            sight_student_pv_with_title = pd.concat([chilpan, sight_student_pv.fillna('')], ignore_index=True)
-            sight_teacher_pv_with_title = pd.concat([sight_teacher_pv.fillna(''), chilpan], ignore_index=True)
+        # ── 기존 자리표 저장·다운로드 블록 “전체 교체” ──────────────────────────
+        with pd.ExcelWriter("자리표.xlsx", engine="openpyxl") as writer:
+            # 칠판 행(빈칸 포함)
+            chilpan = pd.DataFrame([[""] * sight_teacher_pv.shape[1],
+                                    ["칠판"] * sight_teacher_pv.shape[1],
+                                    [""] * sight_teacher_pv.shape[1]])
+            chilpan.columns = range(1, sight_teacher_pv.shape[1] + 1)
 
-            sight_student_pv_with_title.to_excel(writer, sheet_name='학생 관점', index=False, header=False)
-            sight_teacher_pv_with_title.to_excel(writer, sheet_name='교사 관점', index=False, header=False)
+            # 시트 데이터
+            student_sheet = pd.concat([chilpan, sight_student_pv.fillna("")], ignore_index=True)
+            teacher_sheet = pd.concat([sight_teacher_pv.fillna(""), chilpan], ignore_index=True)
 
+            student_sheet.to_excel(writer, sheet_name="학생 관점", index=False, header=False)
+            teacher_sheet.to_excel(writer, sheet_name="교사 관점", index=False, header=False)
+
+        # ── 서식 적용 ───────────────────────────────────────────────────────────
+        wb = load_workbook("자리표.xlsx")
+        thin = Side(style="thin", color="999999")
+        green = PatternFill(fill_type="solid", fgColor="A9EBBC")
+
+        for ws in wb.worksheets:
+            for row in ws.iter_rows():
+                chilpan_row = any(cell.value == "칠판" for cell in row)
+                for cell in row:
+                    cell.font = Font(size=14, bold=True)
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+                    cell.border = Border(top=thin, left=thin, right=thin, bottom=thin)
+                    if chilpan_row:
+                        cell.fill = green
+            # 열 너비 균일 설정
+            for col in range(1, ws.max_column + 1):
+                ws.column_dimensions[get_column_letter(col)].width = 15
+
+        wb.save("자리배치표.xlsx")
+        st.write("  ")
+        # ── 다운로드 버튼 ───────────────────────────────────────────────────────
         st.download_button(
-            label="자리표 다운로드",
-            data=open('자리표.xlsx', 'rb').read(),
-            file_name='자리표.xlsx',
-            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            label="자리배치표 Excel 다운로드",
+            data=open("자리배치표.xlsx", "rb").read(),
+            file_name=f"자리배치표_{classname}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            type='primary'
         )
+        # ───────────────────────────────────────────────────────────────────────
+
 
 st.markdown("""
 <hr style='margin-top: 50px; margin-bottom: 10px;'>
