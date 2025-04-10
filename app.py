@@ -214,56 +214,128 @@ if st.button("자리배치 완료"):
         # st.session_state["자리배치_학생"] = sight_student_pv
         # st.session_state["자리배치_교사"] = sight_teacher_pv
 
-        # ── 상단 import 구역에 추가 ─────────────────────────────────────────────
+
+        import io
         from openpyxl import load_workbook
-        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+        from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
         from openpyxl.utils import get_column_letter
-        # ───────────────────────────────────────────────────────────────────────
+
+        if "자리표_학생" in st.session_state and "자리표_교사" in st.session_state:
+            classname = st.text_input("📘 학급명 또는 파일명에 쓸 제목 입력", value="우리반", help="예: 3학년2반, Class A 등")
+
+            # ✅ 파일을 메모리 버퍼로 처리
+            output = io.BytesIO()
+
+            with pd.ExcelWriter(output, engine="openpyxl") as writer:
+                # 칠판 행 생성
+                chilpan = pd.DataFrame([[""] * st.session_state["자리표_교사"].shape[1],
+                                        ["칠판"] * st.session_state["자리표_교사"].shape[1],
+                                        [""] * st.session_state["자리표_교사"].shape[1]])
+                chilpan.columns = range(1, st.session_state["자리표_교사"].shape[1] + 1)
+
+                # 학생 관점 / 교사 관점 시트 구성
+                student_sheet = pd.concat([chilpan, st.session_state["자리표_학생"].fillna("")], ignore_index=True)
+                teacher_sheet = pd.concat([st.session_state["자리표_교사"].fillna(""), chilpan], ignore_index=True)
+
+                student_sheet.to_excel(writer, sheet_name="학생 관점", index=False, header=False)
+                teacher_sheet.to_excel(writer, sheet_name="교사 관점", index=False, header=False)
+
+            # ✅ 버퍼에서 워크북 로드
+            output.seek(0)
+            wb = load_workbook(output)
+            thin = Side(style="thin", color="999999")
+            green = PatternFill(fill_type="solid", fgColor="A9EBBC")
+
+            for ws in wb.worksheets:
+                for row in ws.iter_rows():
+                    chilpan_row = any(cell.value == "칠판" for cell in row)
+                    for cell in row:
+                        cell.font = Font(size=14, bold=True)
+                        cell.alignment = Alignment(horizontal="center", vertical="center")
+                        cell.border = Border(top=thin, left=thin, right=thin, bottom=thin)
+                        if chilpan_row:
+                            cell.fill = green
+                for col in range(1, ws.max_column + 1):
+                    ws.column_dimensions[get_column_letter(col)].width = 15
+
+            # ✅ 다시 메모리 버퍼에 저장
+            final_output = io.BytesIO()
+            wb.save(final_output)
+            final_output.seek(0)
+
+            # ✅ 다운로드 버튼
+            st.download_button(
+                label="📥 자리표 Excel 다운로드",
+                data=final_output,
+                file_name=f"자리배치표_{classname}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
 
 
-        # ── 기존 자리표 저장·다운로드 블록 “전체 교체” ──────────────────────────
-        with pd.ExcelWriter("자리표.xlsx", engine="openpyxl") as writer:
-            # 칠판 행(빈칸 포함)
-            chilpan = pd.DataFrame([[""] * sight_teacher_pv.shape[1],
-                                    ["칠판"] * sight_teacher_pv.shape[1],
-                                    [""] * sight_teacher_pv.shape[1]])
-            chilpan.columns = range(1, sight_teacher_pv.shape[1] + 1)
 
-            # 시트 데이터
-            student_sheet = pd.concat([chilpan, sight_student_pv.fillna("")], ignore_index=True)
-            teacher_sheet = pd.concat([sight_teacher_pv.fillna(""), chilpan], ignore_index=True)
 
-            student_sheet.to_excel(writer, sheet_name="학생 관점", index=False, header=False)
-            teacher_sheet.to_excel(writer, sheet_name="교사 관점", index=False, header=False)
 
-        # ── 서식 적용 ───────────────────────────────────────────────────────────
-        wb = load_workbook("자리표.xlsx")
-        thin = Side(style="thin", color="999999")
-        green = PatternFill(fill_type="solid", fgColor="A9EBBC")
 
-        for ws in wb.worksheets:
-            for row in ws.iter_rows():
-                chilpan_row = any(cell.value == "칠판" for cell in row)
-                for cell in row:
-                    cell.font = Font(size=14, bold=True)
-                    cell.alignment = Alignment(horizontal="center", vertical="center")
-                    cell.border = Border(top=thin, left=thin, right=thin, bottom=thin)
-                    if chilpan_row:
-                        cell.fill = green
-            # 열 너비 균일 설정
-            for col in range(1, ws.max_column + 1):
-                ws.column_dimensions[get_column_letter(col)].width = 15
 
-        wb.save("자리표.xlsx")
-        st.write("")
-        # ── 다운로드 버튼 ───────────────────────────────────────────────────────
-        st.download_button(
-            label="자리표 Excel 다운로드",
-            data=open("자리표.xlsx", "rb").read(),
-            file_name=f"자리배치표_{classname}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-        # ───────────────────────────────────────────────────────────────────────
+
+        # # ── 상단 import 구역에 추가 ─────────────────────────────────────────────
+        # from openpyxl import load_workbook
+        # from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+        # from openpyxl.utils import get_column_letter
+        # # ───────────────────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+        # # ── 기존 자리표 저장·다운로드 블록 “전체 교체” ──────────────────────────
+        # with pd.ExcelWriter("자리표.xlsx", engine="openpyxl") as writer:
+        #     # 칠판 행(빈칸 포함)
+        #     chilpan = pd.DataFrame([[""] * sight_teacher_pv.shape[1],
+        #                             ["칠판"] * sight_teacher_pv.shape[1],
+        #                             [""] * sight_teacher_pv.shape[1]])
+        #     chilpan.columns = range(1, sight_teacher_pv.shape[1] + 1)
+
+        #     # 시트 데이터
+        #     student_sheet = pd.concat([chilpan, sight_student_pv.fillna("")], ignore_index=True)
+        #     teacher_sheet = pd.concat([sight_teacher_pv.fillna(""), chilpan], ignore_index=True)
+
+        #     student_sheet.to_excel(writer, sheet_name="학생 관점", index=False, header=False)
+        #     teacher_sheet.to_excel(writer, sheet_name="교사 관점", index=False, header=False)
+
+        # # ── 서식 적용 ───────────────────────────────────────────────────────────
+        # wb = load_workbook("자리표.xlsx")
+        # thin = Side(style="thin", color="999999")
+        # green = PatternFill(fill_type="solid", fgColor="A9EBBC")
+
+        # for ws in wb.worksheets:
+        #     for row in ws.iter_rows():
+        #         chilpan_row = any(cell.value == "칠판" for cell in row)
+        #         for cell in row:
+        #             cell.font = Font(size=14, bold=True)
+        #             cell.alignment = Alignment(horizontal="center", vertical="center")
+        #             cell.border = Border(top=thin, left=thin, right=thin, bottom=thin)
+        #             if chilpan_row:
+        #                 cell.fill = green
+        #     # 열 너비 균일 설정
+        #     for col in range(1, ws.max_column + 1):
+        #         ws.column_dimensions[get_column_letter(col)].width = 15
+
+        # wb.save("자리표.xlsx")
+        # st.write("")
+        # # ── 다운로드 버튼 ───────────────────────────────────────────────────────
+        # st.download_button(
+        #     label="자리표 Excel 다운로드",
+        #     data=open("자리표.xlsx", "rb").read(),
+        #     file_name=f"자리배치표_{classname}.xlsx",
+        #     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        # )
+        # # ───────────────────────────────────────────────────────────────────────
+
+
+
 
 
 st.markdown("""
