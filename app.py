@@ -6,13 +6,12 @@ import random
 
 # ✅ 페이지 설정
 st.set_page_config(
-    page_title="우리 반 자리바꾸기",
-    page_icon="🎒",
-    layout="wide"
+    page_title="자리바꾸기",
+    page_icon="👾",
 )
 
 # ✅ 타이틀
-st.title("🎒 우리 반 자리바꾸기")
+st.title("👾 자리바꾸기")
 
 st.info("""
 **학생 명단 입력 방법을 선택해주세요!**  
