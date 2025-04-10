@@ -42,7 +42,7 @@ df = None
 n_student = 0
 
 with col_input:
-    st.subheader("👥 학생 명단 입력")
+    st.subheader("👥 1단계: 학생 명단 입력")
 
     # 1. 엑셀 업로드
     st.markdown("#### 📄 엑셀 업로드")
@@ -56,10 +56,9 @@ with col_input:
         except Exception as e:
             st.error(f"파일을 읽는 중 오류가 발생했습니다: {e}")
 
-    # 2. 이름 직접 입력
     if df is None or df.empty:
         st.markdown("#### ✍️ 이름 직접 입력")
-        name_input = st.text_area("콤마(,)로 이름을 구분해 입력해주세요.\n예: 김철수, 이영희, 박민수", height=100)
+        name_input = st.text_area("콤마(,)로 이름을 구분해 입력해주세요.\n예: 김철수,이영희,박민수", height=100)
 
         if name_input:
             names = [name.strip() for name in name_input.split(",") if name.strip()]
@@ -71,10 +70,23 @@ with col_input:
                 n_student = len(df)
                 st.success(f"{n_student}명의 학생 이름이 직접 입력되었습니다.")
 
+        # ✅ 이름 없이 번호만으로 명단 만들기
+        if df is None or df.empty:
+            use_numbers_only = st.checkbox("이름 없이 번호(1, 2, 3...)로 명단 생성하기")
+            if use_numbers_only:
+                count = st.number_input("학생 수를 입력하세요", min_value=1, step=1, value=24)
+                df = pd.DataFrame({
+                    "번호": list(range(1, count + 1)),
+                    "이름": [str(i) for i in range(1, count + 1)]
+                })
+                n_student = len(df)
+                st.success(f"{n_student}명의 번호 기반 명단이 생성되었습니다.")
+
+
     # 3. 랜덤 이름 생성
     if df is None or df.empty:
         st.markdown("#### 🎲 랜덤 이름 생성")
-        n_student_random = st.number_input("생성할 학생 수", min_value=1, step=1, value=18)
+        n_student_random = st.number_input("생성할 학생 수", min_value=1, step=1, value=24)
         df = create_sample_data(n_student_random)
         n_student = n_student_random
         st.success(f"{n_student}명의 무작위 학생 이름이 생성되었습니다.")
@@ -88,17 +100,32 @@ with col_preview:
 
 
 
-col_row, col_col = st.columns(2)
-with col_row:
-    # 가로줄(행) 입력
-    n_row = st.number_input("가로줄(행)은 몇줄인가요?", min_value=1, value=st.session_state.get('n_row', 1), step=1)
-    st.session_state.n_row = n_row
+import math
+
+# 기본 세팅: 세로줄 5, 가로줄은 학생 수 기반 계산
+default_col = 5
+default_row = math.ceil(n_student / default_col) if n_student else 1
+st.write(default_row)
+col_row, col_col, font = st.columns(3)
+
 with col_col:
-    # 세로줄(열) 입력
-    n_col = st.number_input("세로줄(열)은 몇줄인가요?", min_value=1, value=st.session_state.get('n_col', 1), step=1)
+    n_col = st.number_input("세로줄(열)은 몇 줄인가요?", min_value=1, value=default_col, step=1)
     st.session_state.n_col = n_col
 
+with col_row:
+    default_row = math.ceil(n_student / n_col) if n_student else 1
+    n_row = st.number_input("가로줄(행)은 몇 줄인가요?", min_value=1, value=default_row, step=1)
+    st.session_state.n_row = n_row
+
+with font:
+    font_size = st.number_input("자리표 글자 크기 설정 (단위: px)", min_value=10, max_value=60, value=30, step=1)
+
+
+
 st.write('---')
+st.subheader("🪑 2단계: 좌석배치 & 빈자리 체크하기")
+
+st.info("아래에서 빈 자리를 체크 해제 해주세요. 세로 다섯 줄로 추천 배치도가 만들어졌습니다. ")
 st.markdown("<h5 style='text-align: center; background-color: #a9ebbc; line-height: 1.5; margin-top: 0px; margin-bottom: 5px; padding: 5px'>칠판</h5>", unsafe_allow_html=True)
 cols = st.columns(n_col)
 
@@ -138,19 +165,50 @@ if st.button("자리배치 완료"):
 
         sight_student = pd.DataFrame(updated_data)
 
-        # 학생 관점 자리배치도
-        st.subheader("학생 관점 자리배치도")
-        st.markdown("<h5 style='text-align: center; background-color: #a9ebbc; line-height: 1.5; margin-top: 0px; margin-bottom: 20px; padding: 5px'>칠판</h5>", unsafe_allow_html=True)
-
+        # 자리표 데이터 피벗
         sight_student_pv = pd.pivot_table(sight_student, index='행', columns='열', values='이름', aggfunc='first')
-        st.dataframe(sight_student_pv, use_container_width=True)  # 화면에 꽉차도록
+        sight_teacher_pv = sight_student_pv.iloc[::-1, ::-1].reset_index(drop=True)
+
+        # ✅ 세션에 저장
+        st.session_state["자리배치_학생"] = sight_student_pv
+        st.session_state["자리배치_교사"] = sight_teacher_pv
+
+        def render_styled_table(df, font_size=font_size):
+            html = "<table style='width: 100%; border-collapse: collapse; text-align: center;'>"
+            for row in df.itertuples(index=False):
+                html += "<tr>"
+                for cell in row:
+                    html += f"<td style='border: 1px solid #999; padding: 12px; font-weight: bold; font-size: {font_size}px;'>{cell if pd.notna(cell) else ''}</td>"
+                html += "</tr>"
+            html += "</table>"
+            return html
+
+
+
+        # 학생 관점 자리배치도
+        st.subheader("👁️‍🗨️ 학생 관점 자리배치도")
+        st.markdown("<h5 style='text-align: center; background-color: #a9ebbc; line-height: 1.5; margin-top: 0px; margin-bottom: 20px; padding: 5px'>칠판</h5>", unsafe_allow_html=True)
+        st.markdown(render_styled_table(sight_student_pv), unsafe_allow_html=True)
 
         # 교사 관점 자리배치도
-        sight_teacher_pv = sight_student_pv.iloc[::-1, ::-1].reset_index(drop=True)
-        st.subheader("교사 관점 자리배치도")
-        st.dataframe(sight_teacher_pv, use_container_width=True)  # 화면에 꽉차도록
+        st.subheader("🧑‍🏫 교사 관점 자리배치도")
+        st.markdown(render_styled_table(sight_teacher_pv), unsafe_allow_html=True)
         st.markdown("<h5 style='text-align: center; background-color: #a9ebbc; line-height: 1.5; margin-top: 0px; margin-bottom: 0px; padding: 5px'>칠판</h5>", unsafe_allow_html=True)
+
+        # sight_student_pv = pd.pivot_table(sight_student, index='행', columns='열', values='이름', aggfunc='first')
+        # st.dataframe(sight_student_pv, use_container_width=True)  # 화면에 꽉차도록
+
+        # # 교사 관점 자리배치도
+        # sight_teacher_pv = sight_student_pv.iloc[::-1, ::-1].reset_index(drop=True)
+        # st.subheader("교사 관점 자리배치도")
+        # st.dataframe(sight_teacher_pv, use_container_width=True)  # 화면에 꽉차도록
+        # st.markdown("<h5 style='text-align: center; background-color: #a9ebbc; line-height: 1.5; margin-top: 0px; margin-bottom: 0px; padding: 5px'>칠판</h5>", unsafe_allow_html=True)
         
+        # # 세션에 자리배치 데이터 저장
+        # st.session_state["자리배치_학생"] = sight_student_pv
+        # st.session_state["자리배치_교사"] = sight_teacher_pv
+
+
         # 자리표 다운로드 버튼
         with pd.ExcelWriter('자리표.xlsx') as writer:
             st.write("")  # 위에 빈칸 추가
