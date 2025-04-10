@@ -1,14 +1,30 @@
 import streamlit as st  
 import pandas as pd
 from faker import Faker
-import time  # 시간 지연을 위한 임포트
+import time
+import random
 
-st.title("우리 반 자리바꾸기")
-st.warning("자리바꾸기 알고리즘은 추가될 예정입니다. 현재는 랜덤만 가능합니다. ")
+# ✅ 페이지 설정
+st.set_page_config(
+    page_title="우리 반 자리바꾸기",
+    page_icon="🎒",
+    layout="wide"
+)
 
+# ✅ 타이틀
+st.title("🎒 우리 반 자리바꾸기")
+
+st.info("""
+**학생 명단 입력 방법을 선택해주세요!**  
+1. **이름 입력하기** : 콤마(,)로 구분해서 직접 입력  
+2. **엑셀 파일 업로드** : CSV 형식으로 업로드  
+3. **랜덤 이름 생성** : 학생 수만 입력하면 무작위 이름 생성  
+
+💡 엑셀 양식이 필요하면 오른쪽 표에서 다운로드 버튼을 눌러주세요! (표 위에 마우스를 올리면 버튼이 보여요)
+""")
+
+# ✅ Faker 설정 및 샘플 생성 함수
 fake = Faker('ko_KR')
-
-col_student, col_data = st.columns(2)
 
 @st.cache_data
 def create_sample_data(n_student):
@@ -18,23 +34,59 @@ def create_sample_data(n_student):
     }
     return pd.DataFrame(data)
 
-with col_student:
-    st.info("명단 엑셀을 업로드해주세요. 엑셀 양식을 다운로드하려면 fake 데이터 생성에 학생 수를 입력하고 오른쪽 표에서 다운로드 버튼을 눌러주세요.(표에 마우스오버를 하면 다운로드 버튼이 나타나요.)")
+# ✅ 2단 레이아웃: 입력창과 미리보기 분리 (좁은:넓은 비율)
+col_input, col_preview = st.columns([1.2, 2.8])
 
-    uploaded_file = st.file_uploader("엑셀 파일을 업로드해주세요.", type=["csv"])
-    
+# 데이터프레임 초기화
+df = None
+n_student = 0
+
+with col_input:
+    st.subheader("👥 학생 명단 입력")
+
+    # 1. 엑셀 업로드
+    st.markdown("#### 📄 엑셀 업로드")
+    uploaded_file = st.file_uploader("CSV 파일을 업로드하세요", type=["csv"])
+
     if uploaded_file is not None:
-        df = pd.read_csv(uploaded_file, index_col=0)
-        n_student = len(df)
-        st.success(f"{n_student}명의 학생 데이터가 업로드되었습니다.")
-    else:
-        n_student = st.number_input("fake 데이터 생성용: 학생수를 입력해주세요.",
-                            min_value=1, step=1, value=18)
-        df = create_sample_data(n_student)  # 샘플 데이터 생성하여 df에 저장
+        try:
+            df = pd.read_csv(uploaded_file, index_col=0)
+            n_student = len(df)
+            st.success(f"{n_student}명의 학생 데이터가 업로드되었습니다.")
+        except Exception as e:
+            st.error(f"파일을 읽는 중 오류가 발생했습니다: {e}")
 
-with col_data:
-    if 'df' in locals():
-        st.write(df)
+    # 2. 이름 직접 입력
+    if df is None or df.empty:
+        st.markdown("#### ✍️ 이름 직접 입력")
+        name_input = st.text_area("콤마(,)로 이름을 구분해 입력해주세요.\n예: 김철수, 이영희, 박민수", height=100)
+
+        if name_input:
+            names = [name.strip() for name in name_input.split(",") if name.strip()]
+            if names:
+                df = pd.DataFrame({
+                    "번호": list(range(1, len(names) + 1)),
+                    "이름": names
+                })
+                n_student = len(df)
+                st.success(f"{n_student}명의 학생 이름이 직접 입력되었습니다.")
+
+    # 3. 랜덤 이름 생성
+    if df is None or df.empty:
+        st.markdown("#### 🎲 랜덤 이름 생성")
+        n_student_random = st.number_input("생성할 학생 수", min_value=1, step=1, value=18)
+        df = create_sample_data(n_student_random)
+        n_student = n_student_random
+        st.success(f"{n_student}명의 무작위 학생 이름이 생성되었습니다.")
+
+with col_preview:
+    st.subheader("🧾 학생 명단 미리보기")
+    if df is not None:
+        st.dataframe(df, use_container_width=True, height=400)
+    else:
+        st.warning("왼쪽에서 학생 명단을 입력하거나 생성해주세요.")
+
+
 
 col_row, col_col = st.columns(2)
 with col_row:
