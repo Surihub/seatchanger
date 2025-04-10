@@ -254,12 +254,12 @@ if st.button("자리배치 완료"):
             for col in range(1, ws.max_column + 1):
                 ws.column_dimensions[get_column_letter(col)].width = 15
 
-        wb.save("data/자리배치표.xlsx")
+        wb.save("자리표.xlsx")
         st.write("")
         # ── 다운로드 버튼 ───────────────────────────────────────────────────────
         st.download_button(
-            label="자리배치표 Excel 다운로드",
-            data=open("자리배치표.xlsx", "rb").read(),
+            label="자리표 Excel 다운로드",
+            data=open("자리표.xlsx", "rb").read(),
             file_name=f"자리배치표_{classname}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
