@@ -34,7 +34,7 @@ def create_sample_data(n_student):
     return pd.DataFrame(data)
 
 # ✅ 2단 레이아웃: 입력창과 미리보기 분리 (좁은:넓은 비율)
-col_input, col_preview = st.columns([1.2, 2.8])
+col_input, col_preview = st.columns([1,1])
 
 # 데이터프레임 초기화
 df = None
