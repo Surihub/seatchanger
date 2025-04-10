@@ -40,56 +40,72 @@ col_input, col_preview = st.columns([1,1])
 # 데이터프레임 초기화
 df = None
 n_student = 0
-
+# ── 1) col_input 블록 “전체 교체” ───────────────────────────────────────
 with col_input:
     st.subheader("👥 1단계: 학생 명단 입력")
 
-    # 1. 엑셀 업로드
-    st.markdown("#### 📄 엑셀 업로드")
-    uploaded_file = st.file_uploader("CSV 파일을 업로드하세요", type=["csv"])
+    # (1) 입력 방식 먼저 고르기
+    method = st.radio(
+        "명단 입력 방법을 선택하세요",
+        ("CSV 업로드", "직접 입력", "랜덤 생성"),
+        horizontal=True,
+        key="input_method"
+    )
 
-    if uploaded_file is not None:
-        try:
-            df = pd.read_csv(uploaded_file, index_col=0)
-            n_student = len(df)
-            st.success(f"{n_student}명의 학생 데이터가 업로드되었습니다.")
-        except Exception as e:
-            st.error(f"파일을 읽는 중 오류가 발생했습니다: {e}")
+    # ── CSV 업로드 부분만 교체 ─────────────────────────────────────────────
+    if method == "CSV 업로드":
+        uploaded = st.file_uploader("CSV 파일을 업로드하세요", type=["csv"])
+        if uploaded:
+            try:
+                df_tmp = pd.read_csv(uploaded)               # 인덱스 강제 지정 X
+                # ▸ 1열만 있으면 ‘이름’으로 간주
+                if df_tmp.shape[1] == 1:
+                    df_tmp.columns = ["이름"]
+                    df_tmp.insert(0, "번호", range(1, len(df_tmp) + 1))
+                # ▸ ‘번호·이름’ 열 모두 있으면 그대로 사용
+                elif {"번호", "이름"}.issubset(df_tmp.columns):
+                    df_tmp = df_tmp[["번호", "이름"]]
+                # ▸ 그 외 형식은 첫 열을 번호로, 두 번째 열을 이름으로 간주
+                else:
+                    df_tmp = df_tmp.iloc[:, :2]
+                    df_tmp.columns = ["번호", "이름"]
 
-    if df is None or df.empty:
-        st.markdown("#### ✍️ 이름 직접 입력")
-        name_input = st.text_area("콤마(,)로 이름을 구분해 입력해주세요.\n예: 김철수,이영희,박민수", height=100)
+                df = df_tmp
+                n_student = len(df)
+                st.success(f"{n_student}명의 학생 데이터가 업로드되었습니다.")
+            except Exception as e:
+                st.error(f"CSV 읽기 오류: {e}")
+    # ───────────────────────────────────────────────────────────────────────
 
-        if name_input:
-            names = [name.strip() for name in name_input.split(",") if name.strip()]
+    # ── 2. 직접 입력(콤마 구분) ────────────────────────────────────────
+    elif method == "직접 입력":
+        names_raw = st.text_area(
+            "콤마(,)로 이름을 구분해 입력해주세요.\n예: 김철수,이영희,박민수",
+            height=100
+        )
+        if names_raw:
+            names = [n.strip() for n in names_raw.split(",") if n.strip()]
             if names:
-                df = pd.DataFrame({
-                    "번호": list(range(1, len(names) + 1)),
-                    "이름": names
-                })
+                df = pd.DataFrame({"번호": range(1, len(names)+1), "이름": names})
                 n_student = len(df)
-                st.success(f"{n_student}명의 학생 이름이 직접 입력되었습니다.")
-
-        # ✅ 이름 없이 번호만으로 명단 만들기
+                st.success(f"{n_student}명의 학생 이름이 입력되었습니다.")
+        # (선택) 번호만 명단
         if df is None or df.empty:
-            use_numbers_only = st.checkbox("이름 없이 번호(1, 2, 3...)로 명단 생성하기")
-            if use_numbers_only:
-                count = st.number_input("학생 수를 입력하세요", min_value=1, step=1, value=24)
-                df = pd.DataFrame({
-                    "번호": list(range(1, count + 1)),
-                    "이름": [str(i) for i in range(1, count + 1)]
-                })
-                n_student = len(df)
+            use_numbers = st.checkbox("이름 없이 번호(1, 2, 3…)로 명단 생성하기")
+            if use_numbers:
+                cnt = st.number_input("학생 수", min_value=1, step=1, value=24)
+                df = pd.DataFrame({"번호": range(1, cnt+1), "이름": [str(i) for i in range(1, cnt+1)]})
+                n_student = cnt
                 st.success(f"{n_student}명의 번호 기반 명단이 생성되었습니다.")
 
-
-    # 3. 랜덤 이름 생성
-    if df is None or df.empty:
-        st.markdown("#### 🎲 랜덤 이름 생성")
-        n_student_random = st.number_input("생성할 학생 수", min_value=1, step=1, value=24)
-        df = create_sample_data(n_student_random)
-        n_student = n_student_random
-        st.success(f"{n_student}명의 무작위 학생 이름이 생성되었습니다.")
+    # ── 3. 랜덤 이름 생성 ─────────────────────────────────────────────
+    elif method == "랜덤 생성":
+        cnt_rand = st.number_input("생성할 학생 수", min_value=1, step=1, value=24)
+        if st.button("랜덤 이름 생성"):
+            df = create_sample_data(cnt_rand)
+            n_student = cnt_rand
+            st.success(f"{n_student}명의 무작위 학생 이름이 생성되었습니다.")
+# ───────────────────────────────────────────────────────────────────────
 
 with col_preview:
     st.subheader("🧾 학생 명단 미리보기")
