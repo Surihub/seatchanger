@@ -8,6 +8,7 @@ import random
 st.set_page_config(
     page_title="자리바꾸기",
     page_icon="👾",
+    layout="wide"
 )
 
 # ✅ 타이틀
