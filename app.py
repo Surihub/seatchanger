@@ -46,11 +46,14 @@ def render_styled_table(df, font_size=30):
 today = datetime.today().strftime("%Y.%m.%d")
 todayfile = datetime.today().strftime("%Y%m%d")
 df, n_student = None, 0
-col_input, col_preview = st.columns([1, 1])
+
+st.write("---")
+st.subheader("👥 1단계: 명단 입력")
+
+col_input, col_preview = st.columns([0.6, 0.4])
 
 ###### 👥 1단계: 명단 입력
 with col_input:
-    st.subheader("👥 1단계: 명단 입력")
 
     st.markdown("#### 📄 파일 업로드", help="엑셀만 있다면 오른쪽 미리보기 표에서 CSV로 다운로드할 수 있어요.")
     uploaded_file = st.file_uploader("CSV 파일을 업로드하세요.", type=["csv"])
@@ -63,20 +66,34 @@ with col_input:
         except Exception as e:
             st.error(f"파일을 읽는 중 오류가 발생했습니다: {e}")
 
+    ###### ✍️ 이름 직접 입력 또는 자동 생성 통합
     if df is None or df.empty:
-        st.markdown("#### ✍️ 이름 직접 입력")
-        name_input = st.text_area("콤마(,)로 이름을 구분해 입력해주세요.", height=100)
+        st.markdown("#### ✍️ 이름 직접 입력 또는 생성")
 
-        if name_input:
-            names = [n.strip() for n in name_input.split(",") if n.strip()]
-            if names:
-                df = pd.DataFrame({"번호": range(1, len(names) + 1), "이름": names})
-                n_student = len(df)
-                st.success(f"{n_student}명의 이름이 입력되었습니다.")
+        # 자동 생성 선택
+        auto_mode = st.radio("명단 자동 생성하기", ["무작위 이름 생성", "직접 입력", "번호로만 생성"], horizontal=True)
 
-    if df is None or df.empty:
-        if st.checkbox("이름 없이 번호(1, 2, 3...)로 명단 생성하기"):
-            count = st.number_input("사람 수를 입력하세요", min_value=1, step=1, value=24)
+        if auto_mode == "무작위 이름 생성":
+            count = st.number_input("생성할 사람 수(사람 수를 설정해주세요.)", min_value=1, step=1, value=23)
+            df = create_sample_data(count)
+            n_student = count
+            st.success(f"{n_student}명의 가상의 이름이 생성되었습니다.")
+
+        elif auto_mode == "직접 입력":
+            name_input = st.text_area(
+                "콤마(,)로 이름을 구분해 입력해주세요.",
+                height=100
+            )
+            if name_input:
+                names = [n.strip() for n in name_input.split(",") if n.strip()]
+                if names:
+                    df = pd.DataFrame({"번호": range(1, len(names) + 1), "이름": names})
+                    n_student = len(df)
+                    st.success(f"{n_student}명의 이름이 입력되었습니다.")
+
+
+        elif auto_mode == "번호로만 생성":
+            count = st.number_input("사람 수를 입력하세요", min_value=1, step=1, value=14)
             df = pd.DataFrame({
                 "번호": range(1, count + 1),
                 "이름": [str(i) for i in range(1, count + 1)]
@@ -84,18 +101,11 @@ with col_input:
             n_student = count
             st.success(f"{n_student}명의 번호 기반 명단이 생성되었습니다.")
 
-    if df is None or df.empty:
-        st.markdown("#### 🎲 랜덤 이름 생성", help="일단 테스트로 해보고 싶으시다면!")
-        rand_count = st.number_input("생성할 학생 수", min_value=1, step=1, value=24)
-        df = create_sample_data(rand_count)
-        n_student = rand_count
-        st.success(f"{n_student}명의 무작위 학생 이름이 생성되었습니다.")
-
 ###### 🧾 학생 명단 미리보기
 with col_preview:
     st.subheader("🧾 학생 명단 미리보기")
     if df is not None:
-        st.dataframe(df, use_container_width=True, height=600)
+        st.dataframe(df[['이름']], use_container_width=True, height=450)
     else:
         st.warning("왼쪽에서 학생 명단을 입력하거나 생성해주세요.")
 
@@ -251,12 +261,13 @@ if st.button("🔮 랜덤 자리배치 시작하기") or st.session_state.get("�
         st.session_state["자리배치_완료됨"] = True
         st.session_state["엑셀_파일명"] = f"{classname} 자리표_{todayfile}.xlsx"
 
-st.warning("자리표 미리보기 화면입니다. 이대로 저장하시는 경우 [📥 Excel 자리표 다운로드]를, 다시 배치하려면 [🔄 자리배치 다시 하기]버튼을 눌러주세요. ")
 
 
 # ✅ 자리배치 완료 후에만 표시
 if st.session_state.get("자리배치_완료됨"):
     # 자리표 미리보기
+    st.warning("자리표 미리보기 화면입니다. 이대로 저장하시는 경우 [📥 Excel 자리표 다운로드]를, 다시 배치하려면 [🔄 자리배치 다시 하기]버튼을 눌러주세요. ")
+
     st.subheader("👁️‍🗨️ 학생 관점 자리배치도")
     st.markdown("<h5 style='text-align: center; background-color: #a9ebbc; "
                 "line-height: 1.5; margin-top: 0px; margin-bottom: 20px; padding: 5px'>칠판</h5>", unsafe_allow_html=True)
