@@ -102,7 +102,6 @@ with col_preview:
 # 기본 세팅: 세로줄 5, 가로줄은 학생 수 기반 계산
 default_col = 5
 default_row = math.ceil(n_student / default_col) if n_student else 1
-# st.write(default_row)
 col_row, col_col, font = st.columns(3)
 
 with col_col:
@@ -152,8 +151,6 @@ if st.button("🔮 랜덤 자리배치 시작하기") or st.session_state.get("�
         if st.session_state.get(f"{i+1}-{j+1}", True)
     ]
 
-    st.write(len(df))
-    st.write(len(selected_seats))
     if len(selected_seats) < len(df):
         st.error(f"자리배치도의 자리 수({len(selected_seats)})가 학생 수({len(df)})보다 적습니다.")
     elif len(selected_seats) > len(df):
