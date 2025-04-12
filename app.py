@@ -186,7 +186,6 @@ if st.button("🔮 랜덤 자리배치 시작하기") or st.session_state.get("�
         st.session_state["자리배치_교사"] = sight_teacher_pv
 
         # 학생 관점 자리배치도
-        st.warning("아래 자리표 미리보기는 엑셀파일을 다운로드 하면 사라집니다. 필요한 경우 📸 캡쳐해두세요!")
 
         with pd.ExcelWriter("자리표.xlsx", engine="openpyxl") as writer:
             # 칠판 행(빈칸 포함)
@@ -251,6 +250,8 @@ if st.button("🔮 랜덤 자리배치 시작하기") or st.session_state.get("�
         wb.save("자리표.xlsx")
         st.session_state["자리배치_완료됨"] = True
         st.session_state["엑셀_파일명"] = f"{classname} 자리표_{todayfile}.xlsx"
+
+st.warning("자리표 미리보기 화면입니다. 이대로 저장하시는 경우 [📥 Excel 자리표 다운로드]를, 다시 배치하려면 [🔄 자리배치 다시 하기]버튼을 눌러주세요. ")
 
 
 # ✅ 자리배치 완료 후에만 표시
