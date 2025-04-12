@@ -207,7 +207,7 @@ if st.button("🔮 랜덤 자리배치 시작하기") or st.session_state.get("�
 
         # 학생 관점 자리배치도
 
-        with pd.ExcelWriter("data/자리표.xlsx", engine="openpyxl") as writer:
+        with pd.ExcelWriter("자리표.xlsx", engine="openpyxl") as writer:
             # 칠판 행(빈칸 포함)
             board = pd.DataFrame([[""] * sight_teacher_pv.shape[1],
                                 ["칠판"] * sight_teacher_pv.shape[1],
@@ -267,7 +267,7 @@ if st.button("🔮 랜덤 자리배치 시작하기") or st.session_state.get("�
 
 
 
-        wb.save("data/자리표.xlsx")
+        wb.save("자리표.xlsx")
         st.session_state["자리배치_완료됨"] = True
         st.session_state["엑셀_파일명"] = f"{classname} 자리표_{todayfile}.xlsx"
 
@@ -293,7 +293,7 @@ if st.session_state.get("자리배치_완료됨"):
     with col_dl:
         st.download_button(
             label="📥 Excel 자리표 다운로드",
-            data=open("data/자리표.xlsx", "rb").read(),
+            data=open("자리표.xlsx", "rb").read(),
             file_name=st.session_state["엑셀_파일명"],
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             type="primary"
