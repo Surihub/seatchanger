@@ -47,14 +47,27 @@ def create_sample_data(n_student):
 col_input, col_preview = st.columns([1,1])
 
 # 데이터프레임 초기화
+today = datetime.today().strftime("%Y.%m.%d")
+todayfile = datetime.today().strftime("%Y%m%d")
 df = None
 n_student = 0
+
+def render_styled_table(df, font_size=30):
+    html = "<table style='width: 100%; border-collapse: collapse; text-align: center;'>"
+    for row in df.itertuples(index=False):
+        html += "<tr>"
+        for cell in row:
+            html += f"<td style='border: 1px solid #999; padding: 12px; font-weight: bold; font-size: {font_size}px;'>{cell if pd.notna(cell) else ''}</td>"
+        html += "</tr>"
+    html += "</table>"
+    return html
+
 
 with col_input:
     st.subheader("👥 1단계: 명단 입력")
 
     # 1. 엑셀 업로드
-    st.markdown("#### 📄 파일 업로드", help="혹시 엑셀파일로만 가지고 계신가요? ")
+    st.markdown("#### 📄 파일 업로드", help="혹시 엑셀파일로만 가지고 계신가요? 오른쪽 미리보기 표에 마우스를 가져다대면 다운로드 버튼(Download as csv)이 나옵니다. 이 양식을 사용하여보세요.")
     uploaded_file = st.file_uploader("CSV 파일을 업로드하세요.", type=["csv"])
 
     if uploaded_file is not None:
@@ -138,23 +151,49 @@ st.info("아래에서 빈 자리를 체크 해제 해주세요. 세로 다섯 �
 st.markdown("<h5 style='text-align: center; background-color: #a9ebbc; line-height: 1.5; margin-top: 0px; margin-bottom: 5px; padding: 5px'>칠판</h5>", unsafe_allow_html=True)
 cols = st.columns(n_col)
 
-seating_chart = [[cols[j].checkbox(f"{i+1}-{j+1}", key=f"{i+1}-{j+1}", value=True) for j in range(n_col)] for i in range(n_row)]
+seating_chart = [
+    [
+        cols[j].checkbox(
+            f"{i+1}-{j+1}",
+            key=f"{i+1}-{j+1}",
+            value=st.session_state.get(f"{i+1}-{j+1}", True)   # ✅ 수정
+        )
+        for j in range(n_col)
+    ]
+    for i in range(n_row)
+]
+
+
+# seating_chart = [[cols[j].checkbox(f"{i+1}-{j+1}", key=f"{i+1}-{j+1}", value=True) for j in range(n_col)] for i in range(n_row)]
 # st.session_state.seating_chart = seating_chart  # 세션 상태에 저장
 
 classname = st.text_input("📘 학급명 또는 파일명에 쓸 제목 입력",
                         value="우리 반",
                         help="예: 3학년2반, Class A 등")
-st.write('---')
+
+if st.button("🔮 랜덤 자리배치 시작하기") or st.session_state.get("자리배치_트리거"):
+    st.session_state["자리배치_트리거"] = False
+
+    # ▶ 무조건 현재 체크된 자리들 다시 가져옴
+    # ▸ 랜덤 섞기 전 계산
+    selected_seats = [
+        (i+1, j+1)
+        for i in range(n_row)
+        for j in range(n_col)
+        if st.session_state.get(f"{i+1}-{j+1}", True)
+    ]
 
 
-if st.button("🔮 랜덤 자리배치 시작하기"):
-    # 선택된 자리배치표 생성하기
-    selected_seats = [(i+1, j+1) for i in range(n_row) for j in range(n_col) if seating_chart[i][j]]
+    # ❌ 더 이상 selected_seats를 세션에 저장하지 않는다
+    # st.session_state["selected_seats"] = selected_seats   ← 삭제
+    # st.write(len(selected_seats))
 
+    st.write(len(df))
+    st.write(len(selected_seats))
     if len(selected_seats) < len(df):
-        st.error("자리배치도의 자리 수가 학생 수보다 적습니다.")
+        st.error(f"자리배치도의 자리 수({len(selected_seats)})가 학생 수({len(df)})보다 적습니다.")
     elif len(selected_seats) > len(df):
-        st.error("자리배치도의 자리 수가 학생 수보다 많습니다.")
+        st.error(f"자리배치도의 자리 수({len(selected_seats)})가 학생 수({len(df)})보다 많습니다.")
     else:
         # 애니메이션 효과를 위한 로딩 메시지
         st.image("https://mir-s3-cdn-cf.behance.net/project_modules/max_1200/5eeea355389655.59822ff824b72.gif")
@@ -164,6 +203,9 @@ if st.button("🔮 랜덤 자리배치 시작하기"):
         # 랜덤
         import random
         random.shuffle(selected_seats)
+
+        # ✅ 꼭 이 타이밍에 저장해야 한다
+        # st.session_state["selected_seats"] = selected_seats
 
         # 학생 데이터 업데이트
         updated_data = []
@@ -186,29 +228,28 @@ if st.button("🔮 랜덤 자리배치 시작하기"):
         st.session_state["자리배치_학생"] = sight_student_pv
         st.session_state["자리배치_교사"] = sight_teacher_pv
 
-        def render_styled_table(df, font_size=font_size):
-            html = "<table style='width: 100%; border-collapse: collapse; text-align: center;'>"
-            for row in df.itertuples(index=False):
-                html += "<tr>"
-                for cell in row:
-                    html += f"<td style='border: 1px solid #999; padding: 12px; font-weight: bold; font-size: {font_size}px;'>{cell if pd.notna(cell) else ''}</td>"
-                html += "</tr>"
-            html += "</table>"
-            return html
+        # def render_styled_table(df, font_size=font_size):
+        #     html = "<table style='width: 100%; border-collapse: collapse; text-align: center;'>"
+        #     for row in df.itertuples(index=False):
+        #         html += "<tr>"
+        #         for cell in row:
+        #             html += f"<td style='border: 1px solid #999; padding: 12px; font-weight: bold; font-size: {font_size}px;'>{cell if pd.notna(cell) else ''}</td>"
+        #         html += "</tr>"
+        #     html += "</table>"
+        #     return html
 
 
 
         # 학생 관점 자리배치도
-        st.write('---')
         st.error("아래 자리표 미리보기는 엑셀파일을 다운로드 하면 사라집니다. 필요한 경우 📸 캡쳐해두세요!")
-        st.subheader("👁️‍🗨️ 학생 관점 자리배치도")
-        st.markdown("<h5 style='text-align: center; background-color: #a9ebbc; line-height: 1.5; margin-top: 0px; margin-bottom: 20px; padding: 5px'>칠판</h5>", unsafe_allow_html=True)
-        st.markdown(render_styled_table(sight_student_pv), unsafe_allow_html=True)
+        # st.subheader("👁️‍🗨️ 학생 관점 자리배치도")
+        # st.markdown("<h5 style='text-align: center; background-color: #a9ebbc; line-height: 1.5; margin-top: 0px; margin-bottom: 20px; padding: 5px'>칠판</h5>", unsafe_allow_html=True)
+        # st.markdown(render_styled_table(sight_student_pv), unsafe_allow_html=True)
 
-        # 교사 관점 자리배치도
-        st.subheader("🧑‍🏫 교사 관점 자리배치도")
-        st.markdown(render_styled_table(sight_teacher_pv), unsafe_allow_html=True)
-        st.markdown("<h5 style='text-align: center; background-color: #a9ebbc; line-height: 1.5; margin-top: 0px; margin-bottom: 0px; padding: 5px'>칠판</h5>", unsafe_allow_html=True)
+        # # 교사 관점 자리배치도
+        # st.subheader("🧑‍🏫 교사 관점 자리배치도")
+        # st.markdown(render_styled_table(sight_teacher_pv), unsafe_allow_html=True)
+        # st.markdown("<h5 style='text-align: center; background-color: #a9ebbc; line-height: 1.5; margin-top: 0px; margin-bottom: 0px; padding: 5px'>칠판</h5>", unsafe_allow_html=True)
 
         # 자리표 다운로드 버튼
 
@@ -231,8 +272,7 @@ if st.button("🔮 랜덤 자리배치 시작하기"):
         wb = load_workbook("자리표.xlsx")
         thin = Side(style="thin", color="999999")
         green = PatternFill("solid", fgColor="A9EBBC")
-        today = datetime.today().strftime("%Y.%m.%d")
-        todayfile = datetime.today().strftime("%Y%m%d")
+
 
         for ws in wb.worksheets:
             max_row = ws.max_row
@@ -256,169 +296,58 @@ if st.button("🔮 랜덤 자리배치 시작하기"):
             ws.cell(row=max_row + 3, column=1, value=f"제작 날짜 : {today}").font = Font(size=12)
 
         wb.save("자리표.xlsx")
-        st.write("---")
-        # ── 다운로드 버튼 (더 눈에 띄게) ────────────────────────────────────────
+        st.session_state["자리배치_완료됨"] = True
+        st.session_state["엑셀_파일명"] = f"{classname} 자리표_{todayfile}.xlsx"
+
+
+# ✅ 자리배치 완료 후에만 표시
+if st.session_state.get("자리배치_완료됨"):
+    # 자리표 미리보기
+    st.subheader("👁️‍🗨️ 학생 관점 자리배치도")
+    st.markdown("<h5 style='text-align: center; background-color: #a9ebbc; "
+                "line-height: 1.5; margin-top: 0px; margin-bottom: 20px; padding: 5px'>칠판</h5>", unsafe_allow_html=True)
+    st.markdown(render_styled_table(st.session_state["자리배치_학생"], font_size=font_size), unsafe_allow_html=True)
+
+    st.subheader("🧑‍🏫 교사 관점 자리배치도")
+    st.markdown(render_styled_table(st.session_state["자리배치_교사"], font_size=font_size), unsafe_allow_html=True)
+    st.markdown("<h5 style='text-align: center; background-color: #a9ebbc; "
+                "line-height: 1.5; margin-top: 0px; margin-bottom: 0px; padding: 5px'>칠판</h5>", unsafe_allow_html=True)
+
+    # 두 버튼
+
+    st.write("    ")
+    col_dl, col_reset = st.columns([1, 1])
+    with col_dl:
         st.download_button(
-            label="📥  Excel 자리표 다운로드",        # 굵은 아이콘 + 한글 설명
+            label="📥 Excel 자리표 다운로드",
             data=open("자리표.xlsx", "rb").read(),
-            file_name=f"{classname} 자리표_{todayfile}.xlsx",
+            file_name=st.session_state["엑셀_파일명"],
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            type="primary"                         # 파란색 ‘Primary’ 스타일
+            type="primary"
         )
-        # ─────────────────────────────────────────────────────────────────────
+    with col_reset:
+        if st.button("🔄 자리배치 다시 하기", type="secondary"):
+            # # 체크박스 키만 제거
+            # for i in range(1, st.session_state["n_row"]+1):
+            #     for j in range(1, st.session_state["n_col"]+1):
+            #         k = f"{i}-{j}"
+            #         if k in st.session_state:
+            #             del st.session_state[k]
 
-        # sight_student_pv = pd.pivot_table(sight_student, index='행', columns='열', values='이름', aggfunc='first')
-        # st.dataframe(sight_student_pv, use_container_width=True)  # 화면에 꽉차도록
-
-        # # 교사 관점 자리배치도
-        # sight_teacher_pv = sight_student_pv.iloc[::-1, ::-1].reset_index(drop=True)
-        # st.subheader("교사 관점 자리배치도")
-        # st.dataframe(sight_teacher_pv, use_container_width=True)  # 화면에 꽉차도록
-        # st.markdown("<h5 style='text-align: center; background-color: #a9ebbc; line-height: 1.5; margin-top: 0px; margin-bottom: 0px; padding: 5px'>칠판</h5>", unsafe_allow_html=True)
-        
-        # # 세션에 자리배치 데이터 저장
-        # st.session_state["자리배치_학생"] = sight_student_pv
-        # st.session_state["자리배치_교사"] = sight_teacher_pv
-
-
-        # import io
-        # from openpyxl import load_workbook
-        # from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-        # from openpyxl.utils import get_column_letter
-
-        # if "자리배치_학생" in st.session_state and "자리배치_교사" in st.session_state:
-        #     stu = st.session_state["자리배치_학생"]
-        #     tch = st.session_state["자리배치_교사"]
-        #     ...
-
-        #     classname = st.text_input("📘 학급명 또는 파일명에 쓸 제목 입력",
-        #                             value="우리반",
-        #                             help="예: 3학년2반, Class A 등")
-
-        #     # ✅ 파일을 메모리 버퍼로 처리
-        #     output = io.BytesIO()
-
-        #     with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        #         # 칠판 행 생성
-        #         chilpan = pd.DataFrame([[""] * st.session_state["자리표_교사"].shape[1],
-        #                                 ["칠판"] * st.session_state["자리표_교사"].shape[1],
-        #                                 [""] * st.session_state["자리표_교사"].shape[1]])
-        #         chilpan.columns = range(1, st.session_state["자리표_교사"].shape[1] + 1)
-
-        #         # 학생 관점 / 교사 관점 시트 구성
-        #         student_sheet = pd.concat([chilpan, st.session_state["자리표_학생"].fillna("")], ignore_index=True)
-        #         teacher_sheet = pd.concat([st.session_state["자리표_교사"].fillna(""), chilpan], ignore_index=True)
-
-        #         student_sheet.to_excel(writer, sheet_name="학생 관점", index=False, header=False)
-        #         teacher_sheet.to_excel(writer, sheet_name="교사 관점", index=False, header=False)
-
-        #     # ✅ 버퍼에서 워크북 로드
-        #     output.seek(0)
-        #     wb = load_workbook(output)
-        #     thin = Side(style="thin", color="999999")
-        #     green = PatternFill(fill_type="solid", fgColor="A9EBBC")
-
-        #     for ws in wb.worksheets:
-        #         for row in ws.iter_rows():
-        #             chilpan_row = any(cell.value == "칠판" for cell in row)
-        #             for cell in row:
-        #                 cell.font = Font(size=14, bold=True)
-        #                 cell.alignment = Alignment(horizontal="center", vertical="center")
-        #                 cell.border = Border(top=thin, left=thin, right=thin, bottom=thin)
-        #                 if chilpan_row:
-        #                     cell.fill = green
-        #         for col in range(1, ws.max_column + 1):
-        #             ws.column_dimensions[get_column_letter(col)].width = 15
-
-        #     # ✅ 다시 메모리 버퍼에 저장
-        #     final_output = io.BytesIO()
-        #     wb.save(final_output)
-        #     final_output.seek(0)
-        #     st.write("## 여ㅛ기요기")
-        #     st.write(final_output)
-
-            # # ✅ 다운로드 버튼
-            # st.download_button(
-            #     label="📥 자리표 Excel 다운로드",
-            #     data=final_output,
-            #     file_name=f"자리배치표_{classname}.xlsx",
-            #     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            # )
-            # if "final_output" in st.session_state:
-            #     st.download_button(
-            #         "📥 자리표 Excel 다운로드",
-            #         data=st.session_state["final_output"],
-            #         file_name=f"자리배치표_{classname or '무명'}.xlsx",
-            #         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            #     )
-
-
-
-
-
-
-
-
-        # # ── 상단 import 구역에 추가 ─────────────────────────────────────────────
-        # from openpyxl import load_workbook
-        # from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
-        # from openpyxl.utils import get_column_letter
-        # # ───────────────────────────────────────────────────────────────────────
-
-
-
-
-
-
-
-        # # ── 기존 자리표 저장·다운로드 블록 “전체 교체” ──────────────────────────
-        # with pd.ExcelWriter("자리표.xlsx", engine="openpyxl") as writer:
-        #     # 칠판 행(빈칸 포함)
-        #     chilpan = pd.DataFrame([[""] * sight_teacher_pv.shape[1],
-        #                             ["칠판"] * sight_teacher_pv.shape[1],
-        #                             [""] * sight_teacher_pv.shape[1]])
-        #     chilpan.columns = range(1, sight_teacher_pv.shape[1] + 1)
-
-        #     # 시트 데이터
-        #     student_sheet = pd.concat([chilpan, sight_student_pv.fillna("")], ignore_index=True)
-        #     teacher_sheet = pd.concat([sight_teacher_pv.fillna(""), chilpan], ignore_index=True)
-
-        #     student_sheet.to_excel(writer, sheet_name="학생 관점", index=False, header=False)
-        #     teacher_sheet.to_excel(writer, sheet_name="교사 관점", index=False, header=False)
-
-        # # ── 서식 적용 ───────────────────────────────────────────────────────────
-        # wb = load_workbook("자리표.xlsx")
-        # thin = Side(style="thin", color="999999")
-        # green = PatternFill(fill_type="solid", fgColor="A9EBBC")
-
-        # for ws in wb.worksheets:
-        #     for row in ws.iter_rows():
-        #         chilpan_row = any(cell.value == "칠판" for cell in row)
-        #         for cell in row:
-        #             cell.font = Font(size=14, bold=True)
-        #             cell.alignment = Alignment(horizontal="center", vertical="center")
-        #             cell.border = Border(top=thin, left=thin, right=thin, bottom=thin)
-        #             if chilpan_row:
-        #                 cell.fill = green
-        #     # 열 너비 균일 설정
-        #     for col in range(1, ws.max_column + 1):
-        #         ws.column_dimensions[get_column_letter(col)].width = 15
-
-        # wb.save("자리표.xlsx")
-        # st.write("")
-        # # ── 다운로드 버튼 ───────────────────────────────────────────────────────
-        # st.download_button(
-        #     label="자리표 Excel 다운로드",
-        #     data=open("자리표.xlsx", "rb").read(),
-
-        #     file_name=f"자리배치표_{classname}.xlsx",
-        #     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        # )
-        # # ───────────────────────────────────────────────────────────────────────
-
-
-        # 자리표 다운로드 버튼
-
+            # # 나머지 필요한 값 보존
+            # keep = {
+            #     "df": st.session_state["df"],
+            #     "n_student": st.session_state["n_student"],
+            #     "n_row": st.session_state["n_row"],
+            #     "n_col": st.session_state["n_col"],
+            #     "font_size": st.session_state["font_size"],
+            #     "classname": st.session_state["classname"],
+            #     "자리배치_트리거": True          # 자동 재실행
+            # }
+            # 체크박스 상태는 그대로 두고, 새 랜덤 배치를 트리거만 켠다
+            st.session_state["자리배치_트리거"] = True
+            st.session_state["자리배치_완료됨"] = False   # 버튼 잠시 숨기기(optional)
+            st.rerun()
 
 st.markdown("""
 <hr style='margin-top: 50px; margin-bottom: 10px;'>
