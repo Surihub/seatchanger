@@ -221,7 +221,7 @@ if st.button("🔮 랜덤 자리배치 시작하기") or st.session_state.get("�
             stu_sheet.to_excel(writer, sheet_name="학생 관점", index=False, header=False)
             tch_sheet.to_excel(writer, sheet_name="교사 관점", index=False, header=False)
 
-        wb = load_workbook("data/자리표.xlsx")
+        wb = load_workbook("자리표.xlsx")
         thin = Side(style="thin", color="999999")
         green = PatternFill("solid", fgColor="A9EBBC")
 
