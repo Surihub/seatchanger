@@ -139,7 +139,7 @@ with font:
 st.write('---')
 st.subheader("🪑 2단계: 좌석배치 & 빈자리 체크하기")
 
-st.info("아래에서 빈 자리를 체크 해제 해주세요. 세로 다섯 줄로 추천 배치도가 만들어졌습니다. ")
+st.info("아래에서 빈 자리를 체크 해제 해주세요. 세로 다섯 줄로 추천 배치도가 만들어졌습니다. ※ 혹시 모바일에서 배치도가 한 줄로 나오는 경우, 가로모드로 돌려서 확인해보세요. 자리배치도가 잘 보입니다. :)")
 st.markdown("<h5 style='text-align: center; background-color: #a9ebbc; line-height: 1.5; margin-top: 0px; margin-bottom: 5px; padding: 5px'>칠판</h5>", unsafe_allow_html=True)
 cols = st.columns(n_col)
 
