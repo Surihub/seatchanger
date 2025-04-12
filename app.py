@@ -60,7 +60,7 @@ with col_input:
 
     if uploaded_file:
         try:
-            df = pd.read_csv(uploaded_file, index_col=0)
+            df = pd.read_csv(uploaded_file)[['번호', '이름']]
             n_student = len(df)
             st.success(f"{n_student}명의 명단 데이터가 업로드되었습니다.")
         except Exception as e:
@@ -105,7 +105,17 @@ with col_input:
 with col_preview:
     st.subheader("🧾 학생 명단 미리보기")
     if df is not None:
-        st.dataframe(df[['이름']], use_container_width=True, height=450)
+
+        # ▼ 여기 추가
+        csv = df.to_csv(index=False).encode("utf-8-sig")
+        st.download_button(
+            label="📄 학생 명단 CSV 다운로드",
+            data=csv,
+            file_name="학생명단양식.csv",
+            mime="text/csv"
+        )
+        st.dataframe(df, use_container_width=True, height=400)
+
     else:
         st.warning("왼쪽에서 학생 명단을 입력하거나 생성해주세요.")
 
@@ -197,7 +207,7 @@ if st.button("🔮 랜덤 자리배치 시작하기") or st.session_state.get("�
 
         # 학생 관점 자리배치도
 
-        with pd.ExcelWriter("자리표.xlsx", engine="openpyxl") as writer:
+        with pd.ExcelWriter("data/자리표.xlsx", engine="openpyxl") as writer:
             # 칠판 행(빈칸 포함)
             board = pd.DataFrame([[""] * sight_teacher_pv.shape[1],
                                 ["칠판"] * sight_teacher_pv.shape[1],
@@ -211,7 +221,7 @@ if st.button("🔮 랜덤 자리배치 시작하기") or st.session_state.get("�
             stu_sheet.to_excel(writer, sheet_name="학생 관점", index=False, header=False)
             tch_sheet.to_excel(writer, sheet_name="교사 관점", index=False, header=False)
 
-        wb = load_workbook("자리표.xlsx")
+        wb = load_workbook("data/자리표.xlsx")
         thin = Side(style="thin", color="999999")
         green = PatternFill("solid", fgColor="A9EBBC")
 
@@ -257,7 +267,7 @@ if st.button("🔮 랜덤 자리배치 시작하기") or st.session_state.get("�
 
 
 
-        wb.save("자리표.xlsx")
+        wb.save("data/자리표.xlsx")
         st.session_state["자리배치_완료됨"] = True
         st.session_state["엑셀_파일명"] = f"{classname} 자리표_{todayfile}.xlsx"
 
@@ -283,7 +293,7 @@ if st.session_state.get("자리배치_완료됨"):
     with col_dl:
         st.download_button(
             label="📥 Excel 자리표 다운로드",
-            data=open("자리표.xlsx", "rb").read(),
+            data=open("data/자리표.xlsx", "rb").read(),
             file_name=st.session_state["엑셀_파일명"],
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             type="primary"
