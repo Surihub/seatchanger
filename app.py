@@ -206,25 +206,47 @@ if st.button("🔮 랜덤 자리배치 시작하기") or st.session_state.get("�
         thin = Side(style="thin", color="999999")
         green = PatternFill("solid", fgColor="A9EBBC")
 
-
         for ws in wb.worksheets:
             max_row = ws.max_row
-            # (중략) ── 셀 서식 루프 ─────────────────────────────
+
+            # ── 셀 서식 설정 ───────────────────────────────────────
             for r in ws.iter_rows(min_row=1, max_row=max_row):
                 is_board = any(c.value == "칠판" for c in r)
                 for c in r:
-                    c.font = Font(size=40, bold=True)   # ← ① **여기서 14 → 40 으로 변경**
+                    c.font = Font(size=40, bold=True)
                     c.alignment = Alignment(horizontal="center", vertical="center")
                     c.border = Border(top=thin, left=thin, right=thin, bottom=thin)
                     if is_board:
                         c.fill = green
 
-            # ▸ 열 너비
+            # ── 열 너비 설정 ───────────────────────────────────────
             for col in range(1, ws.max_column + 1):
-                ws.column_dimensions[get_column_letter(col)].width = 28  # ← 15 → 28
+                ws.column_dimensions[get_column_letter(col)].width = 28
 
-            # ▸ 제작 날짜(두 줄 띄우고 추가)
+            # ── 하단 안내 문구 삽입 ─────────────────────────────────
             ws.cell(row=max_row + 3, column=1, value=f"제작 날짜 : {today}").font = Font(size=12)
+            
+            if ws.title == "학생 관점":
+                ws.cell(row=max_row + 4, column=1, value="※ 이 시트는 학생이 보는 자리배치표입니다. 교사 관점 배치도는 아래의 다른 탭에서 확인해주세요. ").font = Font(size=12, italic=True)
+            elif ws.title == "교사 관점":
+                ws.cell(row=max_row + 4, column=1, value="※ 이 시트는 교사가 보는 자리배치표입니다. 학생 관점 배치도는 아래의 다른 탭에서 확인해주세요. ").font = Font(size=12, italic=True)
+
+        # ▸ 인쇄 설정: 가로 방향 + 한 페이지에 맞추기
+        ws.page_setup.orientation = "landscape"              # 가로 방향
+        ws.page_setup.paperSize = ws.PAPERSIZE_A4            # A4용지
+        ws.page_setup.fitToWidth = 1                         # 가로 1페이지
+        ws.page_setup.fitToHeight = 1                        # 세로 1페이지
+
+        # ▸ 여백 최소화
+        ws.page_margins.left = 0.2
+        ws.page_margins.right = 0.2
+        ws.page_margins.top = 0.3
+        ws.page_margins.bottom = 0.3
+
+        # ▸ 인쇄영역 명시적으로 지정
+        ws.print_area = f"A1:{get_column_letter(ws.max_column)}{ws.max_row + 4}"
+
+
 
         wb.save("자리표.xlsx")
         st.session_state["자리배치_완료됨"] = True
